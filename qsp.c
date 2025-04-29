@@ -4,18 +4,22 @@
 #include <string.h>
 #include <time.h>
 
-double get_time();
-int powerof2(int);
-void* parallel_qs(void*);
-void serial_qs(int *, int, int);
-
 typedef struct {
     int myid, N, NT;
     int * arr;
     int ** local_arr; //global view of local arrays
     int * local_arr_size;
+    int * medians, * pivots;
+    pthread_barrier_t * pair_barriers, * group_barriers;
     
 } thread_arg_t;
+
+double get_time();
+int powerof2(int);
+void* parallel_qs(void*);
+void serial_qs(int *, int, int);
+void global_sort(thread_arg_t*, int, int);
+
 
 int main(int ac, char** av) {
     if (ac != 6) {
@@ -77,12 +81,13 @@ int main(int ac, char** av) {
     thread_arg_t * thread_args = (thread_arg_t*) malloc(sizeof(thread_arg_t) * NT);
     int **local_arr = (int**) malloc(sizeof(int *) * NT);
     int *local_arr_size = (int*) malloc(sizeof(int) * NT);
+    int medians[NT], pivots[NT];
 
     int t = 0;
-    int pair_barrier_size = NT / 2; 
-    int group_barrier_size = NT - 1;
-    pthread_barrier_t *pair_barriers = malloc(sizeof(pthread_barrier_t) * pair_barrier_size);
-    pthread_barrier_t *group_barriers = malloc(sizeof(pthread_barrier_t) * group_barrier_size);
+    const int pair_barrier_size = NT / 2; 
+    const int group_barrier_size = NT - 1;
+    pthread_barrier_t pair_barriers[pair_barrier_size];
+    pthread_barrier_t group_barriers[group_barrier_size];
 
     for (int i = 0; i < pair_barrier_size; i++)
         pthread_barrier_init(&pair_barriers[i], NULL, 2); 
@@ -102,6 +107,10 @@ int main(int ac, char** av) {
         thread_args[t].arr = arr;
         thread_args[t].local_arr = local_arr;
         thread_args[t].local_arr_size = local_arr_size;
+        thread_args[t].medians = medians;
+        thread_args[t].pivots = pivots;
+        thread_args[t].pair_barriers = pair_barriers;
+        thread_args[t].group_barriers = group_barriers;
         pthread_create(&threads[t], NULL, parallel_qs, (void *)&thread_args[t]);
     }
 
@@ -116,9 +125,6 @@ int main(int ac, char** av) {
         pthread_barrier_destroy(&pair_barriers[i]);
     for (int i = 0; i < group_barrier_size; i++)
         pthread_barrier_destroy(&group_barriers[i]);
-
-    free(pair_barriers);
-    free(group_barriers);
 
 
     /**** PHASE 3: WRITE OUTPUT TO BINARY FILE ****/
@@ -158,7 +164,7 @@ int main(int ac, char** av) {
 
 void* parallel_qs(void* t_args){
     //arguments
-    const thread_arg_t* thread_args = (thread_arg_t*) t_args;
+    thread_arg_t* thread_args = (thread_arg_t*) t_args;
 
     //individual aruments
     int myid = thread_args->myid;
@@ -186,7 +192,7 @@ void* parallel_qs(void* t_args){
     local_arr[myid] = (int *) malloc(sizeof(int) * local_size);
     memcpy(local_arr[myid], &arr[begin], sizeof(int) * local_size);
 
-
+    global_sort(thread_args, NT, 1);
 
     //copy all the local arrays back to original array
     int prefix_sum = 0;
@@ -197,15 +203,42 @@ void* parallel_qs(void* t_args){
     return NULL;
 }
 
-double get_time() {
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return ts.tv_sec + ts.tv_nsec / 1e9;
+void global_sort(thread_arg_t *thread_args, int size, int gbt){
+    int ** local_arr = thread_args->local_arr;
+    int * local_arr_size = thread_args->local_arr_size;
+    int myid = thread_args->myid;
+    int * medians = thread_args->medians;
+    int * pivots = thread_args->pivots;
+    pthread_barrier_t * pair_barriers = thread_args->pair_barriers;
+    pthread_barrier_t * group_barriers = thread_args->group_barriers;
+
+    if(size == 1) return;
+    int localid = myid % size;
+    int groupid = myid / size;
+
+    int* local_array = local_arr[myid];
+    int len = local_arr_size[myid];
+    int median, pivot;
+    if (len % 2 == 0)
+        median = (local_arr[myid][len/2 - 1] + local_arr[myid][len/2]) / 2;
+    else
+        median = local_arr[myid][len/2];
+    medians[myid] = median;
+    pthread_barrier_wait(&group_barriers[(gbt - 1) + groupid]);
+    // if locid==0 pivot[group]=select the median of the local_arr and save that in pivots array for everything  from myid upto size number of indices       
+    if (localid == 0){
+        pivot = medians[myid];
+    }
+    for(int i=0; i<size; i++){
+        pivots[myid + i] = pivot;
+    }
+
+    pthread_barrier_wait(&group_barriers[(gbt - 1) + groupid]);
+    //rest of the code...
+
+    global_sort(thread_args, size/2, gbt * 2);
 }
 
-int powerof2(int num){
-    return (num > 0) && ((num & (num - 1)) == 0);
-}
 
 // Standard quicksort function
 void serial_qs(int *arr, int begin, int end) {
@@ -230,4 +263,14 @@ void serial_qs(int *arr, int begin, int end) {
     serial_qs(arr, begin, i);
     serial_qs(arr, i + 2, end);
 
+}
+
+double get_time() {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec + ts.tv_nsec / 1e9;
+}
+
+int powerof2(int num){
+    return (num > 0) && ((num & (num - 1)) == 0);
 }
