@@ -17,7 +17,7 @@ typedef struct {
 double get_time();
 int powerof2(int);
 void* parallel_qs(void*);
-void serial_qs(int *, int, int);
+void local_sort(int *, int, int);
 void global_sort(thread_arg_t*, int, int);
 
 
@@ -187,7 +187,7 @@ void* parallel_qs(void* t_args){
     else {
         end = (myid + 1) * local_size;
     }
-    serial_qs(arr, begin, end);
+    local_sort(arr, begin, end);
 
     local_arr_size[myid] = local_size;
     local_arr[myid] = (int *) malloc(sizeof(int) * local_size);
@@ -262,7 +262,7 @@ void global_sort(thread_arg_t *thread_args, int size, int gbt){
 
 
 // Standard quicksort function
-void serial_qs(int *arr, int begin, int end) {
+void local_sort(int *arr, int begin, int end) {
     if (begin >= end) return;
 
     int pivot = arr[end]; 
@@ -281,8 +281,8 @@ void serial_qs(int *arr, int begin, int end) {
     arr[i + 1] = arr[end];
     arr[end] = temp;
 
-    serial_qs(arr, begin, i);
-    serial_qs(arr, i + 2, end);
+    local_sort(arr, begin, i);
+    local_sort(arr, i + 2, end);
 
 }
 
