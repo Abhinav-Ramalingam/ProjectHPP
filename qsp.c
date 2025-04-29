@@ -228,13 +228,20 @@ void global_sort(thread_arg_t *thread_args, int size, int gbt){
     // if locid==0 pivot[group]=select the median of the local_arr and save that in pivots array for everything  from myid upto size number of indices       
     if (localid == 0){
         pivot = medians[myid];
+        for(int i=0; i<size; i++){
+            pivots[myid + i] = pivot;
+        }
     }
-    for(int i=0; i<size; i++){
-        pivots[myid + i] = pivot;
-    }
+    pthread_barrier_wait(&group_barriers[(gbt - 1) + groupid]);
+    
+    pivot = pivots[myid];
+    int split = 0;
+    for(int i = 0; i < len && local_array[i] < pivot; i++);
+    split = i;
 
     pthread_barrier_wait(&group_barriers[(gbt - 1) + groupid]);
-    //rest of the code...
+
+    
 
     global_sort(thread_args, size/2, gbt * 2);
 }
