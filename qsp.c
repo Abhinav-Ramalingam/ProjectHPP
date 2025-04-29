@@ -9,7 +9,7 @@ typedef struct {
     int * arr;
     int ** local_arr; //global view of local arrays
     int * local_arr_size;
-    int * medians, * pivots;
+    int * medians, * pivots, * splitpoints;
     pthread_barrier_t * pair_barriers, * group_barriers;
     
 } thread_arg_t;
@@ -81,7 +81,7 @@ int main(int ac, char** av) {
     thread_arg_t * thread_args = (thread_arg_t*) malloc(sizeof(thread_arg_t) * NT);
     int **local_arr = (int**) malloc(sizeof(int *) * NT);
     int *local_arr_size = (int*) malloc(sizeof(int) * NT);
-    int medians[NT], pivots[NT];
+    int medians[NT], pivots[NT], splitpoints[NT];
 
     int t = 0;
     const int pair_barrier_size = NT / 2; 
@@ -109,6 +109,7 @@ int main(int ac, char** av) {
         thread_args[t].local_arr_size = local_arr_size;
         thread_args[t].medians = medians;
         thread_args[t].pivots = pivots;
+        thread_args[t].splitpoints = splitpoints;
         thread_args[t].pair_barriers = pair_barriers;
         thread_args[t].group_barriers = group_barriers;
         pthread_create(&threads[t], NULL, parallel_qs, (void *)&thread_args[t]);
@@ -209,6 +210,7 @@ void global_sort(thread_arg_t *thread_args, int size, int gbt){
     int myid = thread_args->myid;
     int * medians = thread_args->medians;
     int * pivots = thread_args->pivots;
+    int * splitpoints = thread_args->splitpoints;
     pthread_barrier_t * pair_barriers = thread_args->pair_barriers;
     pthread_barrier_t * group_barriers = thread_args->group_barriers;
 
@@ -219,10 +221,7 @@ void global_sort(thread_arg_t *thread_args, int size, int gbt){
     int* local_array = local_arr[myid];
     int len = local_arr_size[myid];
     int median, pivot;
-    if (len % 2 == 0)
-        median = (local_arr[myid][len/2 - 1] + local_arr[myid][len/2]) / 2;
-    else
-        median = local_arr[myid][len/2];
+    median = local_arr[myid][len/2];
     medians[myid] = median;
     pthread_barrier_wait(&group_barriers[(gbt - 1) + groupid]);
     // if locid==0 pivot[group]=select the median of the local_arr and save that in pivots array for everything  from myid upto size number of indices       
@@ -238,10 +237,25 @@ void global_sort(thread_arg_t *thread_args, int size, int gbt){
     int split = 0;
     for(int i = 0; i < len && local_array[i] < pivot; i++);
     split = i;
+    splitpoints[myid] = split;
 
     pthread_barrier_wait(&group_barriers[(gbt - 1) + groupid]);
 
-    
+    int merged_array_size;
+    int* merged_array;
+    int other_half;
+    if(localid<size/2){
+        other_half = myid + size/2;
+        merged_array_size = (split - 1) + (splitpoints[other_half] - 1);
+    }
+    else{
+        other_half = myid - size/2;
+        merged_array_size = (len - split + 1) + (local_arr_size[other_half] - splitpoints[other_half] + 1);
+    }
+    merged_array = (int * ) malloc(sizeof(int) * merged_array_size);
+
+    //merging process - if lower half, merge lowerparts, else merge upperparts
+
 
     global_sort(thread_args, size/2, gbt * 2);
 }
