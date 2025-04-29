@@ -79,6 +79,22 @@ int main(int ac, char** av) {
     int *local_arr_size = (int*) malloc(sizeof(int) * NT);
 
     int t = 0;
+    int pair_barrier_size = NT / 2; 
+    int group_barrier_size = NT - 1;
+    pthread_barrier_t *pair_barriers = malloc(sizeof(pthread_barrier_t) * pair_barrier_size);
+    pthread_barrier_t *group_barriers = malloc(sizeof(pthread_barrier_t) * group_barrier_size);
+
+    for (int i = 0; i < pair_barrier_size; i++)
+        pthread_barrier_init(&pair_barriers[i], NULL, 2); 
+    int gb_count = 0;
+    for (int i = 1; i < NT; i*=2){
+        int nt = NT / i;
+        for(int j = 0; j < i; j++){
+            pthread_barrier_init(&group_barriers[gb_count], NULL, nt);
+            gb_count++;
+        }
+    }
+
     for(t = 0; t < NT; t++){
         thread_args[t].myid = t;
         thread_args[t].N = N;
@@ -95,6 +111,15 @@ int main(int ac, char** av) {
     stop = get_time();
     printf("Sorting time(s): %lf\n", stop - start);
     start = stop;
+
+    for (int i = 0; i < pair_barrier_size; i++)
+        pthread_barrier_destroy(&pair_barriers[i]);
+    for (int i = 0; i < group_barrier_size; i++)
+        pthread_barrier_destroy(&group_barriers[i]);
+
+    free(pair_barriers);
+    free(group_barriers);
+
 
     /**** PHASE 3: WRITE OUTPUT TO BINARY FILE ****/
     
@@ -160,6 +185,8 @@ void* parallel_qs(void* t_args){
     local_arr_size[myid] = local_size;
     local_arr[myid] = (int *) malloc(sizeof(int) * local_size);
     memcpy(local_arr[myid], &arr[begin], sizeof(int) * local_size);
+
+
 
     //copy all the local arrays back to original array
     int prefix_sum = 0;
