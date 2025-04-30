@@ -234,8 +234,8 @@ void global_sort(thread_arg_t *thread_args, int size, int gbt){
     pthread_barrier_wait(&group_barriers[(gbt - 1) + groupid]);
     
     pivot = pivots[myid];
-    int split = 0;
-    for(int i = 0; i < len && local_array[i] < pivot; i++);
+    int split = 0, i, j, k;
+    for(i = 0; i < len && local_array[i] < pivot; i++);
     split = i;
     splitpoints[myid] = split;
 
@@ -258,7 +258,7 @@ void global_sort(thread_arg_t *thread_args, int size, int gbt){
     merged_array = (int * ) malloc(sizeof(int) * merged_array_size);
 
     //merging process - if lower half, merge lowerparts, else merge upperparts
-    int i = 0, j = 0, k = 0;
+    i = 0, j = 0, k = 0;
     if(localid < size/2) {
         // Merging the lower half
         while (i < split && j < splitpoints[other_half]) {
