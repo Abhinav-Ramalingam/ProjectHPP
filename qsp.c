@@ -224,7 +224,7 @@ void global_sort(thread_arg_t *thread_args, int size, int gbt){
     int* local_array = local_arr[myid];
     int len = local_arr_size[myid];
     int median, pivot;
-    median = local_arr[myid][len/2];
+    median = local_array[len/2];
     medians[myid] = median;
     pthread_barrier_wait(&group_barriers[(gbt - 1) + groupid]);
     // if locid==0 pivot[group]=select the median of the local_arr and save that in pivots array for everything  from myid upto size number of indices       
@@ -255,14 +255,15 @@ void global_sort(thread_arg_t *thread_args, int size, int gbt){
     }
     else{
         other_half = myid - size/2;
-        merged_array_size = (len - split ) + (local_arr_size[other_half] - splitpoints[other_half]);
+        merged_array_size = (len - split) + (local_arr_size[other_half] - splitpoints[other_half]);
         barrier_index = other_half;
     }
     merged_array = (int * ) malloc(sizeof(int) * merged_array_size);
 
     //merging process - if lower half, merge lowerparts, else merge upperparts
-    i = 0, j = 0, k = 0;
+    k = 0;
     if(localid < size/2) {
+        i = 0, j = 0;
         // Merging the lower half
         while (i < split && j < splitpoints[other_half]) {
             if (local_array[i] < local_arr[other_half][j]) {
@@ -281,33 +282,29 @@ void global_sort(thread_arg_t *thread_args, int size, int gbt){
         }
     } else {
         int split_other = splitpoints[other_half];
-    
+        i = split, j = split_other;
         // Merging the upper half
-        while (i < len - split && j < local_arr_size[other_half] - split_other) {
-            if (local_array[i + split] < local_arr[other_half][j + split_other]) {
-                merged_array[k++] = local_array[i + split];
-                i++;
+        while (i < len && j < local_arr_size[other_half]) {
+            if (local_array[i] < local_arr[other_half][j]) {
+                merged_array[k++] = local_array[i++];
             } else {
-                merged_array[k++] = local_arr[other_half][j + split_other];
-                j++;
+                merged_array[k++] = local_arr[other_half][j++];
             }
         }
     
         // Copy remaining elements
-        while (i < len - split) {
-            merged_array[k++] = local_array[i + split];
-            i++;
+        while (i < len) {
+            merged_array[k++] = local_array[i++];
         }
-        while (j < local_arr_size[other_half] - split_other) {
-            merged_array[k++] = local_arr[other_half][j + split_other];
-            j++;
+        while (j < local_arr_size[other_half]) {
+            merged_array[k++] = local_arr[other_half][j++];
         }
     }
 
     //wait array should go inside this
     pthread_barrier_wait(&pair_barriers[barrier_index]);
     
-    free(local_arr[myid]);
+    free(local_array);
     local_arr[myid] = merged_array;
     local_arr_size[myid] = merged_array_size;
 
