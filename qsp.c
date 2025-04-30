@@ -188,13 +188,6 @@ void* parallel_qs(void* t_args){
     else {
         end = (myid + 1) * local_size - 1;
     }
-    // Debug print: show the portion of the array assigned to this thread
-    if(myid == 0){
-        for (int i = 0; i <= N-1; i++) {
-            printf("%d ", arr[i]);
-        }
-        printf("\n");
-    }
     local_sort(arr, begin, end);
 
     local_arr_size[myid] = local_size;
@@ -202,61 +195,23 @@ void* parallel_qs(void* t_args){
     memcpy(local_arr[myid], &arr[begin], sizeof(int) * local_size);
 
     global_sort(thread_args, NT, 1);
-    
+
     //use a barrier to wait for all the threads
     pthread_barrier_wait(&group_barriers[0]);
 
-    // Debug print: show local array and its median
-    if (myid == 0) {
-        printf("Final local arrays: \n");
-        for (int i = 0; i < NT; i++) {
-            for (int j = 0; j < local_arr_size[i]; j++) {
-                printf("%d ", local_arr[i][j]);
-            }
-            printf("\n");
-        }
-        printf("Final local array Sizes: \n");
-        for (int i = 0; i < NT; i++) {
-            printf("%d ", local_arr_size[i]);
-        }
-        printf("\n");
-    }
 
     //copy all the local arrays back to original array
     int prefix_sum = 0;
     for(int t=0; t<myid; t++){
         prefix_sum += local_arr_size[t];
     }
-    // Debug: Show prefix sum and what each thread is copying back
-    printf("\n\n\n\n\n\n\nThread %d copying %d elements to arr[%d]: ", myid, local_arr_size[myid], prefix_sum);
-    for (int i = 0; i < local_arr_size[myid]; i++) {
-        printf("%d ", local_arr[myid][i]);
-    }
-    printf("\n");
 
     memcpy(&arr[prefix_sum], local_arr[myid], sizeof(int) * local_arr_size[myid]);
-
-    // Debug: Confirm copy
-    printf("Thread %d completed copy to arr[%d] - arr[%d]\n", myid, prefix_sum, prefix_sum + local_arr_size[myid] - 1);
-
-
-    
-
-    // Debug print: show the portion of the array assigned to this thread
-    
-    if(myid == 0){
-        printf("here?\n");
-        for (int i = 0; i <= N-1; i++) {
-            printf("%d ", arr[i]);
-        }
-        printf("\n");
-    }
 
     return NULL;
 }
 
 void global_sort(thread_arg_t *thread_args, int size, int gbt){
-    int NT = 4; //debug, pls remove
     int ** local_arr = thread_args->local_arr;
     int * local_arr_size = thread_args->local_arr_size;
     int myid = thread_args->myid;
@@ -266,7 +221,6 @@ void global_sort(thread_arg_t *thread_args, int size, int gbt){
     pthread_barrier_t * pair_barriers = thread_args->pair_barriers;
     pthread_barrier_t * group_barriers = thread_args->group_barriers;
 
-    if(myid == 0) printf("Size = %d\n",size);
     if(size == 1) return;
     int localid = myid % size;
     int groupid = myid / size;
@@ -279,21 +233,6 @@ void global_sort(thread_arg_t *thread_args, int size, int gbt){
 
     pthread_barrier_wait(&group_barriers[(gbt - 1) + groupid]);
 
-    // Debug print: show local array and its median
-    if (myid == 0) {
-        printf("All local arrays: \n");
-        for (int i = 0; i < NT; i++) {
-            for (int j = 0; j < local_arr_size[i]; j++) {
-                printf("%d ", local_arr[i][j]);
-            }
-            printf("\n");
-        }
-        printf("All medians: ");
-        for (int i = 0; i < NT; i++) {
-            printf("%d ", medians[i]);
-        }
-        printf("\n");
-    }
 
     // if locid==0 pivot[group]=select the median of the local_arr and save that in pivots array for everything  from myid upto size number of indices       
     if (localid == 0){
@@ -313,20 +252,7 @@ void global_sort(thread_arg_t *thread_args, int size, int gbt){
 
     pthread_barrier_wait(&group_barriers[(gbt - 1) + groupid]);
 
-    // Debug print: show pivots and splitpoints
-    if (myid == 0) {
-        printf("All pivots: ");
-        for (int i = 0; i < NT; i++) {
-            printf("%d ", pivots[i]);
-        }
-        printf("\n");
 
-        printf("All splitpoints: ");
-        for (int i = 0; i < NT; i++) {
-            printf("%d ", splitpoints[i]);
-        }
-        printf("\n");
-    }
 
     int merged_array_size;
     int* merged_array;
