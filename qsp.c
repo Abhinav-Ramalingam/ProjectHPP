@@ -84,7 +84,7 @@ int main(int ac, char** av) {
     int medians[NT], pivots[NT], splitpoints[NT];
 
     int t = 0;
-    const int pair_barrier_size = NT / 2; 
+    const int pair_barrier_size = NT; 
     const int group_barrier_size = NT - 1;
     pthread_barrier_t pair_barriers[pair_barrier_size];
     pthread_barrier_t group_barriers[group_barrier_size];
@@ -244,13 +244,16 @@ void global_sort(thread_arg_t *thread_args, int size, int gbt){
     int merged_array_size;
     int* merged_array;
     int other_half;
+    int barrier_index;
     if(localid<size/2){
         other_half = myid + size/2;
-        merged_array_size = (split - 1) + (splitpoints[other_half] - 1);
+        merged_array_size = split + splitpoints[other_half];
+        barrier_index = myid; //NT pair barriers created and upper half waits on a lower half barrier (for ease of implementation)
     }
     else{
         other_half = myid - size/2;
-        merged_array_size = (len - split + 1) + (local_arr_size[other_half] - splitpoints[other_half] + 1);
+        merged_array_size = (len - split ) + (local_arr_size[other_half] - splitpoints[other_half]);
+        barrier_index = other_half;
     }
     merged_array = (int * ) malloc(sizeof(int) * merged_array_size);
 
@@ -298,8 +301,8 @@ void global_sort(thread_arg_t *thread_args, int size, int gbt){
         }
     }
 
-    //what should go inside this
-    pthread_barrier_wait();
+    //wait array should go inside this
+    pthread_barrier_wait(&pair_barriers[barrier_index]);
     
     free(local_arr[myid]);
     local_arr[myid] = merged_array;
