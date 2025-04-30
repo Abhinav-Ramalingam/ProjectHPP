@@ -166,6 +166,7 @@ int main(int ac, char** av) {
 void* parallel_qs(void* t_args){
     //arguments
     thread_arg_t* thread_args = (thread_arg_t*) t_args;
+    pthread_barrier_t* group_barriers = thread_args->group_barriers;
 
     //individual aruments
     int myid = thread_args->myid;
@@ -194,6 +195,8 @@ void* parallel_qs(void* t_args){
     memcpy(local_arr[myid], &arr[begin], sizeof(int) * local_size);
 
     global_sort(thread_args, NT, 1);
+    //use a barrier to wait for all the threads
+    pthread_barrier_wait(&group_barriers[0]);
 
     //copy all the local arrays back to original array
     int prefix_sum = 0;
