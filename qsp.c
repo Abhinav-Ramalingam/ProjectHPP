@@ -202,6 +202,9 @@ void* parallel_qs(void* t_args){
     memcpy(local_arr[myid], &arr[begin], sizeof(int) * local_size);
 
     global_sort(thread_args, NT, 1);
+    
+    //use a barrier to wait for all the threads
+    pthread_barrier_wait(&group_barriers[0]);
 
     // Debug print: show local array and its median
     if (myid == 0) {
@@ -224,10 +227,20 @@ void* parallel_qs(void* t_args){
     for(int t=0; t<myid; t++){
         prefix_sum += local_arr_size[t];
     }
+    // Debug: Show prefix sum and what each thread is copying back
+    printf("\n\n\n\n\n\n\nThread %d copying %d elements to arr[%d]: ", myid, local_arr_size[myid], prefix_sum);
+    for (int i = 0; i < local_arr_size[myid]; i++) {
+        printf("%d ", local_arr[myid][i]);
+    }
+    printf("\n");
+
     memcpy(&arr[prefix_sum], local_arr[myid], sizeof(int) * local_arr_size[myid]);
 
-    //use a barrier to wait for all the threads
-    pthread_barrier_wait(&group_barriers[0]);
+    // Debug: Confirm copy
+    printf("Thread %d completed copy to arr[%d] - arr[%d]\n", myid, prefix_sum, prefix_sum + local_arr_size[myid] - 1);
+
+
+    
 
     // Debug print: show the portion of the array assigned to this thread
     
