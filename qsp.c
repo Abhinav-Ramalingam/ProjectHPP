@@ -185,7 +185,7 @@ void* parallel_qs(void* t_args){
         local_size = end - begin + 1;
     }
     else {
-        end = (myid + 1) * local_size;
+        end = (myid + 1) * local_size - 1;
     }
     local_sort(arr, begin, end);
 
