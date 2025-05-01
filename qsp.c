@@ -5,7 +5,7 @@
 #include <time.h>
 
 typedef struct {
-    int myid, N, NT;
+    int myid, N, NT, strat;
     int * arr;
     int ** local_arr; //global view of local arrays
     int * local_arr_size;
@@ -104,6 +104,7 @@ int main(int ac, char** av) {
         thread_args[t].myid = t;
         thread_args[t].N = N;
         thread_args[t].NT = NT;
+        thread_args[t].strat = strat;
         thread_args[t].arr = arr;
         thread_args[t].local_arr = local_arr;
         thread_args[t].local_arr_size = local_arr_size;
@@ -207,11 +208,11 @@ void* parallel_qs(void* t_args){
     }
 
     memcpy(&arr[prefix_sum], local_arr[myid], sizeof(int) * local_arr_size[myid]);
-
     return NULL;
 }
 
 void global_sort(thread_arg_t *thread_args, int size, int gbt){
+    int strat = thread_args->strat;
     int ** local_arr = thread_args->local_arr;
     int * local_arr_size = thread_args->local_arr_size;
     int myid = thread_args->myid;
@@ -228,6 +229,7 @@ void global_sort(thread_arg_t *thread_args, int size, int gbt){
     int* local_array = local_arr[myid];
     int len = local_arr_size[myid];
     int median, pivot;
+    int split = 0, sum = 0, i, j, k;
     median = local_array[len/2];
     medians[myid] = median;
 
@@ -236,15 +238,31 @@ void global_sort(thread_arg_t *thread_args, int size, int gbt){
 
     // if locid==0 pivot[group]=select the median of the local_arr and save that in pivots array for everything  from myid upto size number of indices       
     if (localid == 0){
-        pivot = medians[myid];
-        for(int i=0; i<size; i++){
+        if (strat == 'a')
+            pivot = medians[myid];
+        else if (strat == 'b'){
+            for(i=0; i<size; i++){
+                sum += medians[myid + i];
+            }
+            pivot = sum / size;
+        }
+        else if (strat == 'c'){
+            local_sort(medians, myid, myid + size - 1);
+            pivot = (medians[size/2] + medians[size/2 - 1])/2;
+        }
+        else {
+            printf("Exception: Illegal Pivot Strategy. Exiting...\n");
+            exit(1);
+        }
+
+        //broadcast pivot to all threads in that group (number of threads = size)
+        for(i=0; i<size; i++){
             pivots[myid + i] = pivot;
         }
     }
     pthread_barrier_wait(&group_barriers[(gbt - 1) + groupid]);
     
     pivot = pivots[myid];
-    int split = 0, i, j, k;
     for(i = 0; i < len && local_array[i] < pivot; i++);
     split = i;
     splitpoints[myid] = split;
