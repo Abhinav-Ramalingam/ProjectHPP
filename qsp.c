@@ -150,9 +150,6 @@ int main(int ac, char** av) {
     fclose(output_fp);
     
 
-    for (int i = 0; i < NT; i++) {
-        free(local_arr[i]);
-    }
     free(local_arr);
     free(local_arr_size);
     free(thread_args);
