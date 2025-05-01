@@ -149,7 +149,10 @@ int main(int ac, char** av) {
 
     fclose(output_fp);
     
-
+    if(NT != 1)
+        for (int i = 0; i < NT; i++) {
+            free(local_arr[i]);
+        }
     free(local_arr);
     free(local_arr_size);
     free(thread_args);
@@ -177,6 +180,7 @@ void* parallel_qs(void* t_args){
     int * local_arr_size = thread_args->local_arr_size;
 
     if(NT == 1){
+        printf("Sorting with 1 thread\n");
         local_sort(arr, 0, N - 1);
         return NULL;
     }
