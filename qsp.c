@@ -179,6 +179,11 @@ void* parallel_qs(void* t_args){
     int ** local_arr = thread_args->local_arr;
     int * local_arr_size = thread_args->local_arr_size;
 
+    if(NT == 1){
+        local_sort(arr, 0, N - 1);
+        return NULL;
+    }
+
     int local_size = N / NT;
     int begin = myid * local_size;
     int end;
