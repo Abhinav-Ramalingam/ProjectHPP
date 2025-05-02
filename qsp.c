@@ -91,7 +91,7 @@ int main(int ac, char** av) {
     for (int i = 0; i < pair_barrier_size; i++)
         pthread_barrier_init(&pair_barriers[i], NULL, 2); 
     int gb_count = 0;
-    for (int i = 1; i < NT; i*=2){
+    for (int i = 1; i < NT; i<<=1){
         int nt = NT / i;
         for(int j = 0; j < i; j++){
             pthread_barrier_init(&group_barriers[gb_count], NULL, nt);
@@ -182,7 +182,7 @@ void* parallel_qs(void* t_args){
         return NULL;
     }
 
-    int local_size = N / NT;
+    int local_size = N >> __builtin_ctz(NT);;
     int begin = myid * local_size;
     int end;
     if(myid == NT - 1) {
@@ -233,7 +233,7 @@ void global_sort(thread_arg_t *thread_args, int size, int gbt){
     int len = local_arr_size[myid];
     int median, pivot;
     int split = 0, sum = 0, i, j, k;
-    median = local_array[len/2];
+    median = local_array[len>>1];
     medians[myid] = median;
 
     pthread_barrier_wait(&group_barriers[(gbt - 1) + groupid]);
@@ -247,11 +247,11 @@ void global_sort(thread_arg_t *thread_args, int size, int gbt){
             for(i=0; i<size; i++){
                 sum += medians[myid + i];
             }
-            pivot = sum / size;
+            pivot = sum >> __builtin_ctz(size);
         }
         else if (strat == 'c'){
             local_sort(medians, myid, myid + size - 1);
-            pivot = (medians[size/2] + medians[size/2 - 1])/2;
+            pivot = (medians[size>>1] + medians[(size>>1) - 1])>>1;
         }
         else {
             printf("Exception: Illegal Pivot Strategy. Exiting...\n");
@@ -279,13 +279,13 @@ void global_sort(thread_arg_t *thread_args, int size, int gbt){
     int* merged_array;
     int other_half;
     int barrier_index;
-    if(localid<size/2){
-        other_half = myid + size/2;
+    if(localid<size>>1){
+        other_half = myid + (size>>1);
         merged_array_size = split + splitpoints[other_half];
         barrier_index = myid; //NT pair barriers created and upper half waits on a lower half barrier (for ease of implementation)
     }
     else{
-        other_half = myid - size/2;
+        other_half = myid - (size>>1);
         merged_array_size = (len - split) + (local_arr_size[other_half] - splitpoints[other_half]);
         barrier_index = other_half;
     }
@@ -293,7 +293,7 @@ void global_sort(thread_arg_t *thread_args, int size, int gbt){
 
     //merging process - if lower half, merge lowerparts, else merge upperparts
     k = 0;
-    if(localid < size/2) {
+    if(localid < size>>1) {
         i = 0, j = 0;
         // Merging the lower half
         while (i < split && j < splitpoints[other_half]) {
@@ -342,7 +342,7 @@ void global_sort(thread_arg_t *thread_args, int size, int gbt){
     
 
 
-    global_sort(thread_args, size/2, gbt * 2);
+    global_sort(thread_args, size >> 1, gbt << 1);
 }
 
 
