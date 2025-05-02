@@ -266,8 +266,16 @@ void global_sort(thread_arg_t *thread_args, int size, int gbt){
     pthread_barrier_wait(group_barriers + gbt + groupid - 1);
     
     pivot = pivots[myid];
-    for(i = 0; i < len && local_array[i] < pivot; i++);
-    split = i;
+    int left = 0, right = len;
+    while (left < right) {
+        int mid = left + ((right - left) >> 1);
+        if (local_array[mid] < pivot)
+            left = mid + 1;
+        else
+            right = mid;
+    }
+    split = left;
+
     splitpoints[myid] = split;
 
 
