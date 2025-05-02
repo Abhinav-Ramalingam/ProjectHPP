@@ -48,7 +48,7 @@ int main(int ac, char** av) {
     double start = get_time(), stop;
 
     /**** PHASE 1: READ INPUT FROM FILE ****/
-    int *arr = (int *)calloc(N, sizeof(int));
+    int *arr = (int *)malloc(N * sizeof(int));
     if (arr == NULL) {
         perror("Memory allocation failed");
         return 1;
