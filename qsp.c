@@ -89,12 +89,12 @@ int main(int ac, char** av) {
     pthread_barrier_t group_barriers[group_barrier_size];
 
     for (int i = 0; i < pair_barrier_size; i++)
-        pthread_barrier_init(&pair_barriers[i], NULL, 2); 
+        pthread_barrier_init(pair_barriers + i, NULL, 2); 
     int gb_count = 0;
     for (int i = 1; i < NT; i<<=1){
         int nt = NT / i;
         for(int j = 0; j < i; j++){
-            pthread_barrier_init(&group_barriers[gb_count], NULL, nt);
+            pthread_barrier_init(group_barriers + gb_count, NULL, nt);
             gb_count++;
         }
     }
@@ -112,7 +112,7 @@ int main(int ac, char** av) {
         thread_args[t].splitpoints = splitpoints;
         thread_args[t].pair_barriers = pair_barriers;
         thread_args[t].group_barriers = group_barriers;
-        pthread_create(&threads[t], NULL, parallel_qs, (void *)&thread_args[t]);
+        pthread_create(threads + t, NULL, parallel_qs, (void *)(thread_args+t));
     }
 
     for (t = 0; t < NT; t++)
@@ -123,9 +123,9 @@ int main(int ac, char** av) {
     start = stop;
 
     for (int i = 0; i < pair_barrier_size; i++)
-        pthread_barrier_destroy(&pair_barriers[i]);
+        pthread_barrier_destroy(pair_barriers + i);
     for (int i = 0; i < group_barrier_size; i++)
-        pthread_barrier_destroy(&group_barriers[i]);
+        pthread_barrier_destroy(group_barriers + i);
 
 
     /**** PHASE 3: WRITE OUTPUT TO BINARY FILE ****/
@@ -196,12 +196,12 @@ void* parallel_qs(void* t_args){
 
     local_arr_size[myid] = local_size;
     local_arr[myid] = (int *) malloc(sizeof(int) * local_size);
-    memcpy(local_arr[myid], &arr[begin], sizeof(int) * local_size);
+    memcpy(local_arr[myid], arr + begin, sizeof(int) * local_size);
 
     global_sort(thread_args, NT, 1);
 
     //use a barrier to wait for all the threads
-    pthread_barrier_wait(&group_barriers[0]);
+    pthread_barrier_wait(group_barriers);
 
 
     //copy all the local arrays back to original array
@@ -210,7 +210,7 @@ void* parallel_qs(void* t_args){
         prefix_sum += local_arr_size[t];
     }
 
-    memcpy(&arr[prefix_sum], local_arr[myid], sizeof(int) * local_arr_size[myid]);
+    memcpy(arr + prefix_sum, local_arr[myid], sizeof(int) * local_arr_size[myid]);
     return NULL;
 }
 
@@ -236,7 +236,7 @@ void global_sort(thread_arg_t *thread_args, int size, int gbt){
     median = local_array[len>>1];
     medians[myid] = median;
 
-    pthread_barrier_wait(&group_barriers[(gbt - 1) + groupid]);
+    pthread_barrier_wait(group_barriers + gbt + groupid - 1);
 
 
     // if locid==0 pivot[group]=select the median of the local_arr and save that in pivots array for everything  from myid upto size number of indices       
@@ -263,7 +263,7 @@ void global_sort(thread_arg_t *thread_args, int size, int gbt){
             pivots[myid + i] = pivot;
         }
     }
-    pthread_barrier_wait(&group_barriers[(gbt - 1) + groupid]);
+    pthread_barrier_wait(group_barriers + gbt + groupid - 1);
     
     pivot = pivots[myid];
     for(i = 0; i < len && local_array[i] < pivot; i++);
@@ -271,7 +271,7 @@ void global_sort(thread_arg_t *thread_args, int size, int gbt){
     splitpoints[myid] = split;
 
 
-    pthread_barrier_wait(&group_barriers[(gbt - 1) + groupid]);
+    pthread_barrier_wait(group_barriers + gbt + groupid - 1);
 
 
 
@@ -333,7 +333,7 @@ void global_sort(thread_arg_t *thread_args, int size, int gbt){
     }
 
     //wait array should go inside this
-    pthread_barrier_wait(&pair_barriers[barrier_index]);
+    pthread_barrier_wait(pair_barriers + barrier_index);
     
     free(local_array);
     local_arr[myid] = merged_array;
