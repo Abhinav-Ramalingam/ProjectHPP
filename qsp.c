@@ -15,7 +15,6 @@ typedef struct {
 } thread_arg_t;
 
 double get_time();
-int powerof2(int);
 void* parallel_qs(void*);
 void local_sort(int *, int, int);
 void global_sort(thread_arg_t*, int, int);
@@ -41,7 +40,7 @@ int main(int ac, char** av) {
     int NT = atoi(av[4]);
     char strat = av[5][0];
 
-    if(!powerof2(NT)) {
+    if(!((NT > 0) && ((NT & (NT - 1)) == 0))) {
         printf("Error: NT must be a power of 2\n");
         return 1;
     }
@@ -376,8 +375,4 @@ double get_time() {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return ts.tv_sec + ts.tv_nsec / 1e9;
-}
-
-int powerof2(int num){
-    return (num > 0) && ((num & (num - 1)) == 0);
 }
