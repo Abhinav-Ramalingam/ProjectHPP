@@ -63,11 +63,11 @@ int main(int ac, char** av) {
     }
 
     // Reading integers from the input file
-    for (int i = 0; i < N; i++) {
-        if (fread((arr + i), sizeof(int), 1, input_fp) != 1) {
-            printf("Error reading number at index %d\n", i);
-            break;
-        }
+    if (fread(arr, sizeof(int), N, input_fp) != (size_t) N) {
+        perror("Error reading input file");
+        fclose(input_fp);
+        free(arr);
+        return 1;
     }
     fclose(input_fp);
 
@@ -138,13 +138,11 @@ int main(int ac, char** av) {
         return 1;
     }
 
-    for (int i = 0; i < N; i++) {
-        if (fwrite(&(arr[i]), sizeof(int), 1, output_fp) != 1) {
-            perror("Error writing number to output file");
-            fclose(output_fp);
-            free(arr);
-            return 1;
-        }
+    if (fwrite(arr, sizeof(int), N, output_fp) != (size_t) N) {
+        perror("Error writing to output file");
+        fclose(output_fp);
+        free(arr);
+        return 1;
     }
 
     fclose(output_fp);
