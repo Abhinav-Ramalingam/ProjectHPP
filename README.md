@@ -67,3 +67,7 @@ Finally, run the program to check the sorted data:
 ```
 
 This will check the sorted data and output the total deviations. A result of `0` deviations indicates that the data is correctly sorted.
+
+### 6. Print a Sequence (Utility)
+
+This program is to display a given sequence from a numbers file. Can be used as an alternative debugging tool.
